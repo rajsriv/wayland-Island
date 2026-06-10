@@ -1,7 +1,5 @@
 import sys
 import psutil
-import winreg
-import ctypes
 import datetime
 import math
 import qtawesome as qta
@@ -127,6 +125,7 @@ class DynamicIsland(QWidget):
         self.island_style = "Default" 
         
         self.setObjectName("IslandWidget")
+        self.setWindowTitle("DynamicIsland")
         self.setStyleSheet(get_stylesheet(self.accent_color))
         
         self.last_power_plugged = psutil.sensors_battery().power_plugged if psutil.sensors_battery() else False
@@ -204,15 +203,15 @@ class DynamicIsland(QWidget):
                             
         self.basic_controls_index = 0
         self.basic_controls_items = [
-            {"name": "Shutdown", "icon": "mdi.power", "cmd": "shutdown /s /t 0"},
-            {"name": "Restart", "icon": "mdi.refresh", "cmd": "shutdown /r /t 0"},
-            {"name": "Sleep", "icon": "mdi.sleep", "cmd": "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"},
-            {"name": "File Explorer", "icon": "mdi.folder-outline", "cmd": "explorer ."},
-            {"name": "Settings", "icon": "mdi.cog-outline", "cmd": "start ms-settings:"},
-            {"name": "Task Manager", "icon": "mdi.chart-bubble", "cmd": "taskmgr"},
-            {"name": "Chrome", "icon": "mdi.google-chrome", "cmd": "start chrome"},
+            {"name": "Shutdown", "icon": "mdi.power", "cmd": "systemctl poweroff"},
+            {"name": "Restart", "icon": "mdi.refresh", "cmd": "systemctl reboot"},
+            {"name": "Sleep", "icon": "mdi.sleep", "cmd": "systemctl suspend"},
+            {"name": "Files", "icon": "mdi.folder-outline", "cmd": "xdg-open ."},
+            {"name": "Settings", "icon": "mdi.cog-outline", "cmd": "gnome-control-center"},
+            {"name": "Task Manager", "icon": "mdi.chart-bubble", "cmd": "gnome-system-monitor"},
+            {"name": "Browser", "icon": "mdi.google-chrome", "cmd": "xdg-open https://google.com"},
             {"name": "YouTube", "icon": "mdi.youtube", "cmd": "https://www.youtube.com"},
-            {"name": "CMD", "icon": "mdi.console", "cmd": "start cmd"}
+            {"name": "Terminal", "icon": "mdi.console", "cmd": "gnome-terminal"}
         ]
         self.control_balls = []
         
@@ -503,10 +502,7 @@ class DynamicIsland(QWidget):
             self.update()
 
     def get_windows_accent_color(self):
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\DWM")
-            v, _ = winreg.QueryValueEx(key, "ColorizationColor"); winreg.CloseKey(key); return f"#{(v & 0xFFFFFF):06x}"
-        except: return "#0078D7"
+        return "#0078D7"
 
     def get_shine_phase(self): return self._shine_phase
     def set_shine_phase(self, value): self._shine_phase = value; self.update()
@@ -518,10 +514,13 @@ class DynamicIsland(QWidget):
 
     def setup_autostart(self):
         try:
+            autostart_dir = os.path.expanduser("~/.config/autostart")
+            os.makedirs(autostart_dir, exist_ok=True)
+            desktop_file = os.path.join(autostart_dir, "dynamicisland.desktop")
             app_path = sys.executable if getattr(sys, 'frozen', False) else f'"{sys.executable}" "{sys.argv[0]}"'
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
-            winreg.SetValueEx(key, "DynamicIsland", 0, winreg.REG_SZ, app_path)
-            winreg.CloseKey(key)
+            content = f"[Desktop Entry]\nType=Application\nName=DynamicIsland\nExec={app_path}\nTerminal=false"
+            with open(desktop_file, "w") as f:
+                f.write(content)
         except Exception as e: print("Autostart error:", e)
 
     def init_ui(self):
@@ -1306,7 +1305,6 @@ class DynamicIsland(QWidget):
 
     def recenter_window(self):
         if self.compatibility_mode:
-            # Unlock size restrictions to allow full-screen expansion
             self.setMinimumSize(0, 0)
             self.setMaximumSize(16777215, 16777215)
             sr = self.screen().availableGeometry()
@@ -1336,19 +1334,14 @@ class DynamicIsland(QWidget):
                                                                             
                                                                               
         hit_rect = global_rect.adjusted(-15, -10, 80, 50)  
-        hwnd = int(self.winId())
-        ex = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
-        WS_EX_TRANSPARENT = 0x20
         
         if hit_rect.contains(cursor_pos):
-            if ex & WS_EX_TRANSPARENT: 
-                ctypes.windll.user32.SetWindowLongW(hwnd, -20, ex & ~WS_EX_TRANSPARENT)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
             if self.current_state != "Hover": 
                 self.change_state("Hover")
             self.revert_timer.stop()
         else:
-            if not (ex & WS_EX_TRANSPARENT): 
-                ctypes.windll.user32.SetWindowLongW(hwnd, -20, ex | WS_EX_TRANSPARENT)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             if self.current_state == "Hover":
                 if not self.revert_timer.isActive():
                     self.revert_timer.start(1200)

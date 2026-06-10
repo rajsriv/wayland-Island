@@ -1,37 +1,19 @@
 import requests
-from PyQt6.QtCore import QThread, pyqtSignal
+import threading
+from gi.repository import GLib
 import time
 import datetime
 
-class WeatherMonitor(QThread):
-    weather_updated = pyqtSignal(dict)
-    
-    def __init__(self, city="Varanasi, India", lat=25.3333, lon=83.0):
-        super().__init__()
+class WeatherMonitor(threading.Thread):
+    def __init__(self, callback, city="Varanasi, India", lat=25.3333, lon=83.0):
+        super().__init__(daemon=True)
+        self.callback = callback
         self.city = city
         self.lat = lat
         self.lon = lon
         self.running = True
         self.force_update = False
         self.update_interval = 1800              
-        
-    def set_location(self, city):
-        try:
-            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1&language=en&format=json"
-            res = requests.get(geo_url, timeout=10).json()
-            if "results" in res:
-                result = res["results"][0]
-                self.city = f"{result['name']}, {result.get('country', '')}"
-                self.lat = result["latitude"]
-                self.lon = result["longitude"]
-                self.refresh()
-                return True, self.city
-            return False, "City not found"
-        except Exception as e:
-            return False, str(e)
-
-    def refresh(self):
-        self.force_update = True
 
     def get_weather_icon(self, code):
         mapping = {
@@ -49,13 +31,13 @@ class WeatherMonitor(QThread):
     def get_weather_desc(self, code):
         mapping = {
             0: "Clear Sky",
-            1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
-            45: "Fog", 48: "Depositing Rime Fog",
-            51: "Light Drizzle", 53: "Moderate Drizzle", 55: "Dense Drizzle",
+            1: "Mainly Clear", 2: "Partly Cloudy", 3: "Cloudy",
+            45: "Fog", 48: "Rime Fog",
+            51: "Light Drizzle", 53: "Drizzle", 55: "Dense Drizzle",
             61: "Slight Rain", 63: "Moderate Rain", 65: "Heavy Rain",
             71: "Slight Snow", 73: "Moderate Snow", 75: "Heavy Snow",
-            80: "Slight Rain Showers", 81: "Moderate Rain Showers", 82: "Violent Rain Showers",
-            95: "Thunderstorm", 96: "Thunderstorm with Slight Hail", 99: "Thunderstorm with Heavy Hail"
+            80: "Slight Showers", 81: "Showers", 82: "Violent Showers",
+            95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm"
         }
         return mapping.get(code, "Unknown")
 
@@ -64,40 +46,25 @@ class WeatherMonitor(QThread):
         while self.running:
             if time_since_last >= self.update_interval or self.force_update:
                 try:
-                    url = f"https://api.open-meteo.com/v1/forecast?latitude={self.lat}&longitude={self.lon}&current_weather=true&hourly=temperature_2m,weathercode"
+                    url = f"https://api.open-meteo.com/v1/forecast?latitude={self.lat}&longitude={self.lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto"
                     res = requests.get(url, timeout=10).json()
                     
                     if "current_weather" in res:
                         current = res["current_weather"]
-                        hourly = res["hourly"]
+                        daily = res.get("daily", {})
                         
-                                                            
-                        hourly_data = []
-                        current_time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H:00")
-                        try:
-                            start_idx = hourly["time"].index(current_time_str)
-                        except ValueError:
-                            start_idx = 0
-                            
-                        for i in range(1, 6):
-                            idx = start_idx + i
-                            if idx < len(hourly["time"]):
-                                t_str = hourly["time"][idx]
-                                t_dt = datetime.datetime.strptime(t_str, "%Y-%m-%dT%H:%M")
-                                hourly_data.append({
-                                    "time": t_dt.strftime("%I%p").lstrip("0"),
-                                    "temp": f"{int(hourly['temperature_2m'][idx])}°",
-                                    "icon": self.get_weather_icon(hourly["weathercode"][idx])
-                                })
+                        t_max = int(daily["temperature_2m_max"][0]) if "temperature_2m_max" in daily else "--"
+                        t_min = int(daily["temperature_2m_min"][0]) if "temperature_2m_min" in daily else "--"
                         
                         data = {
                             "city": self.city,
                             "temp": f"{int(current['temperature'])}°",
                             "desc": self.get_weather_desc(current["weathercode"]),
                             "icon": self.get_weather_icon(current["weathercode"]),
-                            "hourly": hourly_data
+                            "high": f"{t_max}°",
+                            "low": f"{t_min}°"
                         }
-                        self.weather_updated.emit(data)
+                        if self.callback: GLib.idle_add(self.callback, data)
                         self.force_update = False
                         time_since_last = 0
                 except Exception as e:
@@ -108,4 +75,3 @@ class WeatherMonitor(QThread):
 
     def stop(self):
         self.running = False
-        self.wait()
