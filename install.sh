@@ -7,7 +7,7 @@ INSTALL_DIR=$(pwd)
 # 2. Check if virtual environment exists
 if [ ! -d "$INSTALL_DIR/.venv" ]; then
     echo "⚙️  No virtual environment found. Creating one now..."
-    python3 -m venv .venv
+    python3 -m venv --system-site-packages .venv
     echo "📦 Installing requirements..."
     source .venv/bin/activate
     pip install -r requirements.txt
