@@ -3,3 +3,5 @@ psutil
 requests
 Pillow
 opencv-python
+pycairo
+PyGObject
