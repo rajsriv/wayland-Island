@@ -7,9 +7,15 @@ import calendar
 from datetime import datetime
 import gi
 gi.require_version('Gtk', '3.0')
-gi.require_version('GtkLayerShell', '0.1')
 gi.require_version('Pango', '1.0')
-from gi.repository import Gtk, Gdk, GLib, GtkLayerShell, Pango, GdkPixbuf
+from gi.repository import Gtk, Gdk, GLib, Pango, GdkPixbuf
+
+try:
+    gi.require_version('GtkLayerShell', '0.1')
+    from gi.repository import GtkLayerShell
+    HAS_LAYER_SHELL = True
+except ValueError:
+    HAS_LAYER_SHELL = False
 
 from tweening import Tween, Easing, ParallelAnimationGroup
 from media_monitor import MediaMonitor
@@ -87,17 +93,18 @@ class DynamicIsland(Gtk.Window):
         GLib.timeout_add_seconds(1, self.update_clock)
         
         # Setup Layer Shell
-        GtkLayerShell.init_for_window(self)
-        GtkLayerShell.set_namespace(self, "dynamic-island")
-        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, False)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 10)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 10)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, 10)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 10)
+        if HAS_LAYER_SHELL and GtkLayerShell.is_supported():
+            GtkLayerShell.init_for_window(self)
+            GtkLayerShell.set_namespace(self, "dynamic-island")
+            GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, False)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 10)
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 10)
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, 10)
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 10)
         
         self.set_visual(self.get_screen().get_rgba_visual())
         self.set_app_paintable(True)
@@ -810,25 +817,28 @@ class DynamicIsland(Gtk.Window):
         self.apply_position()
         self.change_state("Idle", "")
         
-    def apply_position(self):
-        pos = self.app_config.get("position", "top")
-        # Reset all anchors
-        for edge in [GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM,
+    def _apply_anchors(self):
+        if not (HAS_LAYER_SHELL and GtkLayerShell.is_supported()):
+            return
+            
+        for edge in [GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM, 
                      GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT]:
             GtkLayerShell.set_anchor(self, edge, False)
             GtkLayerShell.set_margin(self, edge, 10)
-        
-        # Apply anchors from position string
+            
+        pos = self.app_config.get("position", "top")
         if "top" in pos:
             GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
         if "bottom" in pos:
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+            if HAS_LAYER_SHELL and GtkLayerShell.is_supported():
+                GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
         if "left" in pos:
             GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
         if "right" in pos:
             GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
-        # Pure left/right — no vertical anchor → compositor centers vertically
-        # Pure top/bottom — no horizontal anchor → compositor centers horizontally
+
+    def apply_position(self):
+        self._apply_anchors()
 
         # Align content_box — always centered within the island window
         if hasattr(self, 'content_box'):
@@ -1518,7 +1528,12 @@ class DynamicIsland(Gtk.Window):
             target_w = self.SETTINGS_W
             target_h = 360
             self.border_radius = 14.0
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
+            if HAS_LAYER_SHELL and GtkLayerShell.is_supported():
+                GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
+            
+        if state == "Calendar":
+            if HAS_LAYER_SHELL and GtkLayerShell.is_supported():
+                GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
             
         self.anim_group.stop()
         
