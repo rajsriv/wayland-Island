@@ -4,10 +4,13 @@ echo "🚀 Installing Wayland Island..."
 
 INSTALL_DIR=$(pwd)
 
+# 2. Check if virtual environment exists
 if [ ! -d "$INSTALL_DIR/.venv" ]; then
-    echo "⚠️  No virtual environment found at $INSTALL_DIR/.venv"
-    echo "Please create it and install dependencies first."
-    exit 1
+    echo "⚙️  No virtual environment found. Creating one now..."
+    python3 -m venv .venv
+    echo "📦 Installing requirements..."
+    source .venv/bin/activate
+    pip install -r requirements.txt
 fi
 
 echo "🔧 Creating launch wrapper script..."
