@@ -39,10 +39,14 @@ Every UI element is crafted to feel premium—from the 10px rounded album covers
    pip install dbus-next psutil requests Pillow opencv-python colorgram.py pycairo PyGObject
    ```
 
-4. **Run the Application:**
+4. **Install to System (Autostart & App Launcher):**
+   Run the installation script to dynamically generate your desktop shortcuts and configure autostart.
    ```bash
-   python gtk_main.py
+   chmod +x install.sh
+   ./install.sh
    ```
+   
+   Once installed, the island will start automatically on boot. You can also run it immediately by finding **Wayland Island** in your app launcher!
 
 ## 🛠 Architecture
 
