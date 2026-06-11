@@ -26,21 +26,15 @@ Every UI element is crafted to feel premium—from the 10px rounded album covers
    cd wayland-Island
    ```
 
-2. **Set up a Virtual Environment (Recommended):**
+2. **Install System Dependencies:**
+   Make sure you have the core system packages for GTK3, Cairo, and Python-GObject (usually installed by default on GNOME/GTK-based desktops).
+   On Debian/Ubuntu-based distros:
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
+   sudo apt install python3-venv python3-gi gir1.2-gtk-3.0 libcairo2-dev
    ```
 
-3. **Install Dependencies:**
-   Make sure you have system packages for GTK3, Cairo, and Python-GObject (`python3-gi`, `gir1.2-gtk-3.0`, `libcairo2-dev`).
-   Then, install the python packages:
-   ```bash
-   pip install dbus-next psutil requests Pillow opencv-python colorgram.py pycairo PyGObject
-   ```
-
-4. **Install to System (Autostart & App Launcher):**
-   Run the installation script to dynamically generate your desktop shortcuts and configure autostart.
+3. **Install to System (Auto-Setup & Autostart):**
+   Run the installation script. It will automatically build an isolated Python virtual environment, download the required Python libraries, generate your desktop shortcuts, and configure autostart!
    ```bash
    chmod +x install.sh
    ./install.sh
