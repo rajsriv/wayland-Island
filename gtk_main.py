@@ -1473,6 +1473,18 @@ class DynamicIsland(Gtk.Window):
             except:
                 pass
                 
+            if accent == "#FFFFFF":
+                try:
+                    import subprocess
+                    out = subprocess.check_output(["kreadconfig5", "--group", "General", "--key", "AccentColor"], stderr=subprocess.STDOUT).decode().strip()
+                    if out and "," in out:
+                        r, g, b = map(int, out.split(","))
+                        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+                        if luminance >= 100:
+                            accent = f"#{r:02x}{g:02x}{b:02x}"
+                except:
+                    pass
+                
             for i in range(7):
                 d = start_date + dt.timedelta(days=i)
                 lbl_day, lbl_date = self.mac_cal_dates[i]
