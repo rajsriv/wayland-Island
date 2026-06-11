@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Wayland Island
 Comment=Dynamic Island for Linux
-Exec=bash -c "cd '/home/raj/Storage/prsnl/Raj Prsnl/skill/dynamic island' && source .venv/bin/activate && python gtk_main.py"
+Exec="/home/raj/Storage/prsnl/Raj Prsnl/skill/dynamic island/run.sh"
 Icon=utilities-system-monitor
 Terminal=false
 Type=Application
